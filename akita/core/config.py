@@ -1,7 +1,10 @@
 import os
 import pathlib
 from typing import Dict, Any, Optional
-import tomllib
+try:
+    import tomllib
+except ImportError:
+    import tomli as tomllib
 import tomli_w
 
 CONFIG_DIR = pathlib.Path.home() / ".akita"
