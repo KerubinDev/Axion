@@ -1,25 +1,3 @@
-```text
-	
-		
-                                                                                            
-       db        88        88                    88          88          88b           d88  
-      d88b       88        ""   ,d               88          88          888b         d888  
-     d8'`8b      88             88               88          88          88`8b       d8'88  
-    d8'  `8b     88   ,d8  88 MM88MMM ,adPPYYba, 88          88          88 `8b     d8' 88  
-   d8YaaaaY8b    88 ,a8"   88   88    ""     `Y8 88          88          88  `8b   d8'  88  
-  d8""""""""8b   8888[     88   88    ,adPPPPP88 88          88          88   `8b d8'   88  
- d8'        `8b  88`"Yba,  88   88,   88,    ,88 88          88          88    `888'    88  
-d8'          `8b 88   `Y8a 88   "Y888 `"8bbdP"Y8 88888888888 88888888888 88     `8'     88  
-                                                                                            
-                                                                                            
-
-
-	
-
-
-                                            
-```
-
 # AkitaLLM
 ### A deterministic, local-first AI orchestrator for software engineers.
 
