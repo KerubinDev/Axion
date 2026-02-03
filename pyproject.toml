@@ -1,6 +1,6 @@
 [project]
 name = "akitallm"
-version = "1.0.0"
+version = "1.0.3"
 description = "AkitaLLM: An open-source local-first AI system for programming."
 authors = [{ name = "KerubinDev" }]
 readme = "README.md"
