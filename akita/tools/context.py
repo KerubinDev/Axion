@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Any, List, Dict, Optional
 from pydantic import BaseModel
 
 class FileContext(BaseModel):
