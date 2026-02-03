@@ -55,9 +55,7 @@ class ASTParser:
                 })
 
             for child in node.children:
-                # We only want top level or methods inside classes
-                if node.type == "class_definition" or node.type == "module":
-                    explore(child)
+                explore(child)
 
         explore(root_node)
         return definitions
