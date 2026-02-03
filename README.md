@@ -92,7 +92,7 @@ akita solve "Improve error handling in the reasoning engine to prevent silent fa
 ---
 
 ### 🔌 Extensibility
-AkitaLLM is built to be extended. You can create your own tools and plugins. Check the [Plugin Development Guide](file:///c:/Users/kelvi/OneDrive/Área de Trabalho/AkitaLLM/PLUGINS.md) for more details.
+AkitaLLM is built to be extended. You can create your own tools and plugins. Check the [Plugin Development Guide](AkitaLLM/PLUGINS.md) for more details.
 
 ## 🤝 Contributing
 
