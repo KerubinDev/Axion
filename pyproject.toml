@@ -3,6 +3,18 @@ name = "akitallm"
 version = "0.1.0"
 description = "AkitaLLM: An open-source local-first AI system for programming."
 authors = [{ name = "KerubinDev" }]
+readme = "README.md"
+license = { text = "MIT" }
+keywords = ["ai", "cli", "programming", "local-first", "llm"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
 requires-python = ">=3.10"
 dependencies = [
     "typer[all]",
@@ -16,6 +28,11 @@ dependencies = [
     "tomli-w",
     "tomli",
 ]
+
+[project.urls]
+Homepage = "https://github.com/KerubinDev/AkitaLLM"
+Repository = "https://github.com/KerubinDev/AkitaLLM"
+Issues = "https://github.com/KerubinDev/AkitaLLM/issues"
 
 [project.scripts]
 akita = "akita.cli.main:app"
