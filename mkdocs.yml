@@ -1,0 +1,29 @@
+site_name: AkitaLLM Docs
+site_description: Local-first AI orchestrator for programmers.
+repo_url: https://github.com/KerubinDev/AkitaLLM
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: deep purple
+    accent: purple
+  features:
+    - navigation.tabs
+    - search.highlight
+
+nav:
+  - Welcome: index.md
+  - Getting Started: installation.md
+  - Features:
+      - Intelligent Context: context.md
+      - Plugin System: plugins.md
+      - Interactive Mode: interactive.md
+  - Roadmap: roadmap.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences

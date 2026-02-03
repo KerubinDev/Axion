@@ -2,6 +2,7 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 from akita.reasoning.engine import ReasoningEngine
+from akita.core.indexing import CodeIndexer
 from akita.models.base import get_model
 from akita.core.config import load_config, save_config, reset_config, CONFIG_FILE
 from rich.table import Table
@@ -193,11 +194,28 @@ def plan(
         raise typer.Exit(code=1)
 
 @app.command()
+def index(
+    path: str = typer.Argument(".", help="Path to index for RAG.")
+):
+    """
+    Build a local vector index (RAG) for the project.
+    """
+    console.print(Panel(f"🔍 [bold blue]Akita[/] is indexing: [yellow]{path}[/]", title="Index Mode"))
+    try:
+        indexer = CodeIndexer(path)
+        with console.status("[bold green]Indexing project files..."):
+            indexer.index_project()
+        console.print("[bold green]✅ Indexing complete! Semantic search is now active.[/]")
+    except Exception as e:
+        console.print(f"[bold red]Indexing failed:[/] {e}")
+        raise typer.Exit(code=1)
+
+@app.command()
 def test():
     """
     Run automated tests in the project.
     """
-    console.print(Panel("🐶 [bold blue]Akita[/] is running tests...", title="Test Mode"))
+    console.print(Panel("[bold blue]Akita[/] is running tests...", title="Test Mode"))
     from akita.tools.base import ShellTools
     result = ShellTools.execute("pytest")
     if result.success:
@@ -206,6 +224,26 @@ def test():
     else:
         console.print("[bold red]Tests failed![/]")
         console.print(result.error or result.output)
+
+@app.command()
+def docs():
+    """
+    Start the local documentation server.
+    """
+    import subprocess
+    import sys
+    
+    console.print(Panel("[bold blue]Akita[/] Documentation", title="Docs Mode"))
+    console.print("[dim]Starting MkDocs server...[/]")
+    console.print("[bold green]Open your browser at: http://127.0.0.1:8000[/]")
+    
+    try:
+        subprocess.run([sys.executable, "-m", "mkdocs", "serve"], check=True)
+    except FileNotFoundError:
+        console.print("[red]MkDocs not found. Install it with: pip install mkdocs-material[/]")
+        raise typer.Exit(code=1)
+    except KeyboardInterrupt:
+        console.print("[yellow]Documentation server stopped.[/]")
 
 # Config Command Group
 config_app = typer.Typer(help="Manage AkitaLLM configuration.")

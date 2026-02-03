@@ -27,9 +27,9 @@ dependencies = [
     "gitpython",
     "tomli-w",
     "tomli",
-    "whatthepatch",
-    "tree-sitter",
-    "tree-sitter-python",
+    "whatthepatch>=1.0.5",
+    "tree-sitter>=0.21.3",
+    "tree-sitter-python>=0.21.0"
 ]
 
 [project.urls]

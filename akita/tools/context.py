@@ -12,6 +12,7 @@ class FileContext(BaseModel):
 class ContextSnapshot(BaseModel):
     files: List[FileContext]
     project_structure: List[str]
+    rag_snippets: Optional[List[Dict[str, Any]]] = None
 
 class ContextBuilder:
     def __init__(
@@ -33,22 +34,36 @@ class ContextBuilder:
         if self.use_semantical_context:
             try:
                 from akita.core.ast_utils import ASTParser
+                from akita.core.indexing import CodeIndexer
                 self.ast_parser = ASTParser()
+                self.indexer = CodeIndexer(str(self.base_path))
             except ImportError:
                 self.ast_parser = None
+                self.indexer = None
 
-    def build(self) -> ContextSnapshot:
-        """Scan the path and build a context snapshot."""
+    def build(self, query: Optional[str] = None) -> ContextSnapshot:
+        """
+        Scan the path and build a context snapshot.
+        If a query is provided and indexer is available, it includes RAG snippets.
+        """
         files_context = []
         project_structure = []
+        rag_snippets = None
         
+        if query and self.indexer:
+            try:
+                # Ensure index exists (lazy indexing for now)
+                # In production, we'd have a separate command or check timestamps
+                rag_snippets = self.indexer.search(query, n_results=10)
+            except Exception:
+                pass
+
         if self.base_path.is_file():
             if self._should_include_file(self.base_path):
                 files_context.append(self._read_file(self.base_path))
                 project_structure.append(str(self.base_path.name))
         else:
             for root, dirs, files in os.walk(self.base_path):
-                # Filter out excluded directories
                 dirs[:] = [d for d in dirs if d not in self.exclude_dirs]
                 
                 rel_root = os.path.relpath(root, self.base_path)
@@ -64,7 +79,11 @@ class ContextBuilder:
                                 files_context.append(context)
                                 project_structure.append(os.path.join(rel_root, file))
         
-        return ContextSnapshot(files=files_context, project_structure=project_structure)
+        return ContextSnapshot(
+            files=files_context, 
+            project_structure=project_structure,
+            rag_snippets=rag_snippets
+        )
 
     def _should_include_file(self, path: Path) -> bool:
         if path.name == ".env" or path.suffix == ".env":

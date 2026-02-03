@@ -108,9 +108,16 @@ class ReasoningEngine:
         if not session:
             self.trace.add_step("Context", f"Building context for {path}")
             builder = ContextBuilder(path)
-            snapshot = builder.build()
+            snapshot = builder.build(query=query)
             
             files_str = "\n---\n".join([f"FILE: {f.path}\nCONTENT:\n{f.content}" for f in snapshot.files[:10]])
+            
+            rag_str = ""
+            if snapshot.rag_snippets:
+                rag_str = "\n\nRELEVANT SNIPPETS (RAG):\n" + "\n".join([
+                    f"- {s['path']} ({s['name']}):\n{s['content']}" for s in snapshot.rag_snippets
+                ])
+
             tools_info = "\n".join([f"- {t['name']}: {t['description']}" for t in self.plugin_manager.get_all_tools()])
             
             system_prompt = (
@@ -121,7 +128,7 @@ class ReasoningEngine:
             
             session = ConversationSession()
             session.add_message("system", system_prompt)
-            session.add_message("user", f"Task: {query}\n\nContext:\n{files_str}")
+            session.add_message("user", f"Task: {query}\n\nContext:\n{files_str}{rag_str}")
             self.session = session
         else:
             session.add_message("user", query)
