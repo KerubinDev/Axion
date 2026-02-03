@@ -27,6 +27,7 @@ dependencies = [
     "gitpython",
     "tomli-w",
     "tomli",
+    "whatthepatch",
 ]
 
 [project.urls]
