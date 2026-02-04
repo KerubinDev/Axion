@@ -2,6 +2,7 @@ import os
 import pathlib
 import subprocess
 from typing import Tuple, Optional
+from urllib.parse import urlparse
 from akita.core.config import CONFIG_DIR
 
 class GitTool:
@@ -20,9 +21,21 @@ class GitTool:
         clean_url = url.strip().rstrip("/")
         if clean_url.endswith(".git"):
             clean_url = clean_url[:-4]
-            
-        if "github.com" in clean_url:
-            parts = clean_url.split("github.com/")[-1].split("/")
+
+        host = None
+        path_part = None
+
+        # Handle SCP-like SSH syntax: git@github.com:owner/repo
+        if "@" in clean_url and ":" in clean_url.split("@", 1)[1]:
+            user_host, path_part = clean_url.split("@", 1)[1].split(":", 1)
+            host = user_host
+        else:
+            parsed = urlparse(clean_url)
+            host = parsed.hostname
+            path_part = parsed.path.lstrip("/") if parsed.path else ""
+
+        if host and (host == "github.com" or host.endswith(".github.com")):
+            parts = [p for p in path_part.split("/") if p]
             if len(parts) >= 2:
                 return parts[0], parts[1]
         
