@@ -54,18 +54,31 @@ Saída (formato obrigatório em JSON):
 }}
 """
 
-    # For simplicity, we use LiteLLM if available or direct request to a common provider.
-    # Here we'll use OpenAI-compatible endpoint as a generic approach.
+    # Detect model and provider
+    model_to_use = "gpt-4o-mini" # Default
+    if api_key.startswith("AIza"):
+        model_to_use = "gemini/gemini-3-flash"
+    elif api_key.startswith("sk-ant-"):
+        model_to_use = "anthropic/claude-3-5-sonnet-latest"
+    elif api_key.startswith("gsk_"):
+        model_to_use = "groq/llama-3.3-70b-versatile"
+
     try:
         # We'll try to use litellm since it's already a dependency of the project
         import litellm
+        print(f"Using model: {model_to_use}")
         response = litellm.completion(
-            model="gpt-4o-mini", # Default model for analysis
+            model=model_to_use,
             messages=[{"role": "user", "content": prompt}],
             api_key=api_key,
-            response_format={ "type": "json_object" }
+            # Gemini support for json_object requires 1.5+ and specific config in LiteLLM
         )
         content = response.choices[0].message.content
+        
+        # Clean up Markdown formatting if present
+        if content.startswith("```json"):
+            content = content.replace("```json", "", 1).replace("```", "", 1).strip()
+        
         return json.loads(content)
     except Exception as e:
         print(f"Error during LLM analysis: {e}")
