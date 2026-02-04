@@ -7,6 +7,8 @@ from akita.schemas.review import ReviewResult
 from akita.core.trace import ReasoningTrace
 from akita.reasoning.session import ConversationSession
 import json
+from akita.core.i18n import t
+import pydantic
 from rich.console import Console
 
 console = Console()
@@ -133,8 +135,37 @@ class ReasoningEngine:
         else:
             session.add_message("user", query)
 
-        console.print("🤖 [bold green]Thinking...[/]")
-        response = self.model.chat(session.get_messages_dict())
+        # --- ROBUST EXECUTION ---
+        try:
+            console.print(t("solve.thinking"))
+            response = self.model.chat(session.get_messages_dict())
+        except pydantic.ValidationError as e:
+            # Friendly error for output contract violations
+            error_msg = t("error.validation", type=str(e))
+            console.print(f"[bold red]{error_msg}[/]")
+            # Log debug info if needed
+            raise ValueError(error_msg)
+        except Exception as e:
+            if "validation error" in str(e).lower():
+                 error_msg = t("error.validation", type="ModelResponse")
+                 console.print(f"[bold red]{error_msg}[/]")
+                 raise ValueError(error_msg)
+            raise e
+        
+        # --- CONTRACT ENFORCEMENT ---
+        if not isinstance(response.content, str):
+            error_msg = t("error.validation", type=type(response.content))
+            console.print(f"[bold red]{error_msg}[/]")
+            raise ValueError(error_msg)
+            
+        if "+++" not in response.content or "---" not in response.content:
+             # Relaxed check: Sometimes it's a valid string but forgets headers? 
+             # No, strictly require headers for safety.
+             error_msg = "Solve aborted: Model returned content without Unified Diff headers (+++/---)."
+             console.print(f"[bold red]{error_msg}[/]")
+             console.print(f"[dim]Output start: {response.content[:100]}...[/]")
+             raise ValueError(error_msg)
+
         session.add_message("assistant", response.content)
         
         self.trace.add_step("LLM Response", "Received solution from model")

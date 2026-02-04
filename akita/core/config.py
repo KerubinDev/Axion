@@ -14,6 +14,7 @@ DEFAULT_CONFIG = {
     "model": {
         "provider": "openai",
         "name": "gpt-4o-mini",
+        "language": "en",
     }
 }
 

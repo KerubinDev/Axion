@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from akita.tools.diff import DiffApplier
 from akita.tools.git import GitTool
 from akita.core.providers import detect_provider
+from akita.core.i18n import t
 
 # Load environment variables from .env file
 load_dotenv()
@@ -24,7 +25,7 @@ app = typer.Typer(
 )
 console = Console()
 
-@app.callback()
+@app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
     dry_run: bool = typer.Option(False, "--dry-run", help="Run without making any changes.")
@@ -39,17 +40,31 @@ def main(
     if dry_run:
         console.print("[bold yellow]⚠️ Running in DRY-RUN mode. No changes will be applied.[/]")
 
-    # Onboarding check
+    # Proactive Onboarding / Welcome Logic
     if not CONFIG_FILE.exists():
+        # If no config, always run onboarding (except for help/version which are handled by Typer earlier)
         run_onboarding()
+        # After onboarding, if it was a bare command, show welcome
+        if ctx.invoked_subcommand is None:
+            console.print(Panel(
+                f"{t('welcome.subtitle')}\n\n{t('welcome.commands')}\n\n{t('welcome.help_hint')}",
+                title=t("welcome.title")
+            ))
+    elif ctx.invoked_subcommand is None:
+        # Config exists, bare command -> Show Welcome Banner
+        console.print(Panel(
+            f"{t('welcome.subtitle')}\n\n{t('welcome.commands')}\n\n{t('welcome.help_hint')}",
+            title=t("welcome.title")
+        ))
+
 
 def run_onboarding():
     console.print(Panel(
-        "[bold cyan]AkitaLLM Configuration[/]\n\n[italic]API-first setup...[/]",
+        t("onboarding.welcome"),
         title="Onboarding"
     ))
     
-    api_key = typer.prompt("🔑 Paste your API Key (or type 'ollama' for local)", hide_input=False)
+    api_key = typer.prompt(t("onboarding.api_key_prompt"), hide_input=False)
     
     provider = detect_provider(api_key)
     if not provider:
@@ -57,44 +72,44 @@ def run_onboarding():
         console.print("Make sure you are using a valid OpenAI (sk-...) or Anthropic (sk-ant-...) key.")
         raise typer.Abort()
 
-    console.print(f"[bold green]✅ Detected Provider:[/] {provider.name.upper()}")
+    console.print(t("onboarding.provider_detected", provider=provider.name.upper()))
     
-    with console.status(f"[bold blue]Consulting {provider.name} API for available models..."):
+    with console.status(t("onboarding.models_consulting", provider=provider.name)):
         try:
             models = provider.list_models(api_key)
         except Exception as e:
-            console.print(f"[bold red]❌ Failed to list models:[/] {e}")
+            console.print(t("onboarding.models_failed", error=e))
             raise typer.Abort()
     
     if not models:
-        console.print("[bold yellow]⚠️ No models found for this provider.[/]")
+        console.print(t("onboarding.no_models"))
         raise typer.Abort()
 
-    console.print("\n[bold]Select a model:[/]")
+    console.print(t("onboarding.select_model"))
     for i, model in enumerate(models):
         name_display = f" ({model.name})" if model.name else ""
         console.print(f"{i+1}) [cyan]{model.id}[/]{name_display}")
     
-    choice = typer.prompt("\nChoose a model number", type=int, default=1)
+    choice = typer.prompt(t("onboarding.choice_prompt"), type=int, default=1)
     if 1 <= choice <= len(models):
         selected_model = models[choice-1].id
     else:
-        console.print("[bold red]Invalid choice.[/]")
+        console.print(t("onboarding.invalid_choice"))
         raise typer.Abort()
 
     # New: Preferred Language for UI (Visual Sync Test)
-    lang_choice = typer.prompt("🌍 Select preferred UI language (en/pt/es)", default="en")
+    lang_choice = typer.prompt(t("onboarding.lang_choice"), default="en")
 
     # New: Creativity (Temperature) setting
-    creativity = typer.prompt("🎨 Creativity level (0.0=precise, 1.0=creative)", default=0.7, type=float)
+    creativity = typer.prompt(t("onboarding.creativity_prompt"), default=0.7, type=float)
 
     # Determine if we should save the key or use an env ref
-    use_env = typer.confirm("Would you like to use an environment variable for the API key? (Recommended)", default=True)
+    use_env = typer.confirm(t("onboarding.env_confirm"), default=True)
     
     final_key_ref = api_key
     if use_env and provider.name != "ollama":
         env_var_name = f"{provider.name.upper()}_API_KEY"
-        console.print(f"[dim]Please ensure you set [bold]{env_var_name}[/] in your .env or shell.[/]")
+        console.print(t("onboarding.env_instruction", env_var=env_var_name))
         final_key_ref = f"env:{env_var_name}"
 
     config = {
@@ -103,15 +118,15 @@ def run_onboarding():
             "name": selected_model,
             "api_key": final_key_ref,
             "language": lang_choice,
-            "temperature": creativity  # Saving temperature
+            "temperature": creativity
         }
     }
     
     save_config(config)
-    console.print(f"\n[bold green]✨ Configuration saved![/]")
+    console.print(t("onboarding.saved"))
     console.print(f"Model: [bold]{selected_model}[/]")
     console.print(f"Key reference: [dim]{final_key_ref}[/]")
-    console.print("\n[dim]Configuration stored at ~/.akita/config.toml[/]\n")
+    console.print(t("onboarding.saved_location", path="~/.akita/config.toml"))
 
 @app.command()
 def review(
@@ -169,7 +184,7 @@ def review(
 
 @app.command()
 def solve(
-    query: str,
+    query: Optional[str] = typer.Argument(None, help="The task for Akita to solve."),
     interactive: bool = typer.Option(False, "--interactive", "-i", help="Run in interactive mode to refine the solution."),
     trace: bool = typer.Option(False, "--trace", help="Show the internal reasoning trace."),
     dry_run: bool = typer.Option(False, "--dry-run", help="Run in dry-run mode.")
@@ -177,50 +192,71 @@ def solve(
     """
     Generate and apply a solution for the given query.
     """
+    # Interactive Input if no query provided
+    if not query:
+        console.print(t("solve.input_prompt"))
+        lines = []
+        try:
+            while True:
+                line = input()
+                lines.append(line)
+        except EOFError:
+            pass
+        query = "\n".join(lines).strip()
+        
+        if not query:
+            console.print("[yellow]Empty query. Exiting.[/]")
+            raise typer.Exit()
+
     model = get_model()
     engine = ReasoningEngine(model)
-    console.print(Panel(f"[bold blue]Akita[/] is thinking about: [italic]{query}[/]", title="Solve Mode"))
+    console.print(Panel(f"[bold blue]Akita[/] is thinking about: [italic]{query}[/]", title=t("solve.mode_title")))
     
     current_query = query
     session = None
     
     try:
         while True:
+            # Pass interactive session if reusing context
             diff_output = engine.run_solve(current_query, session=session)
             session = engine.session
             
             if trace:
-                console.print(Panel(str(engine.trace), title="[bold cyan]Reasoning Trace[/]", border_style="cyan"))
-            console.print(Panel("[bold green]Suggested Code Changes (Unified Diff):[/]"))
+                console.print(Panel(str(engine.trace), title=t("solve.trace_title"), border_style="cyan"))
+            
+            console.print(Panel(t("solve.diff_title")))
             syntax = Syntax(diff_output, "diff", theme="monokai", line_numbers=True)
             console.print(syntax)
             
+            # If explicit interactive flag OR we just captured input interactively, we probably want to offer refinement?
+            # The spec said "interactive solve", usually implies refinement loop.
+            # Let's keep the logic: if --interactive flag is used, prompt.
             if interactive:
-                action = typer.prompt("\n[A]pprove, [R]efine with feedback, or [C]ancel?", default="A").upper()
+                action = typer.prompt(t("solve.interactive_prompt"), default="A").upper()
                 if action == "A":
                     break
                 elif action == "R":
-                    current_query = typer.prompt("Enter your feedback/refinement")
+                    current_query = typer.prompt(t("solve.refine_prompt"))
                     continue
                 else:
-                    console.print("[yellow]Operation cancelled.[/]")
+                    console.print(t("solve.cancelled"))
                     return
             else:
                 break
 
         if not dry_run:
-            confirm = typer.confirm("\nDo you want to apply these changes?")
+            confirm = typer.confirm(t("solve.confirm_apply"))
             if confirm:
-                console.print("[bold yellow]🚀 Applying changes...[/]")
+                console.print(t("solve.applying"))
                 success = DiffApplier.apply_unified_diff(diff_output)
                 if success:
-                    console.print("[bold green]✅ Changes applied successfully![/]")
+                    console.print(t("solve.success"))
                 else:
-                    console.print("[bold red]❌ Failed to apply changes.[/]")
+                    console.print(t("solve.failed"))
             else:
-                console.print("[bold yellow]Changes discarded.[/]")
+                console.print(t("solve.discarded"))
     except Exception as e:
-        console.print(f"[bold red]Solve failed:[/] {e}")
+        console.print(t("error.solve_failed", error=e))
         raise typer.Exit(code=1)
 
 @app.command()
@@ -321,34 +357,59 @@ def docs():
 config_app = typer.Typer(help="Manage AkitaLLM configuration.")
 app.add_typer(config_app, name="config")
 
-@config_app.command("model")
-def config_model(
-    reset: bool = typer.Option(False, "--reset", help="Reset configuration to defaults.")
-):
+@config_app.callback(invoke_without_command=True)
+def main_config(ctx: typer.Context):
     """
-    View or change the model configuration.
+    Manage AkitaLLM configuration via interactive menu.
     """
-    if reset:
-        if typer.confirm("Are you sure you want to delete your configuration?"):
-            reset_config()
-            console.print("[bold green]✅ Configuration reset. Onboarding will run on next command.[/]")
+    if ctx.invoked_subcommand:
         return
 
-    config = load_config()
-    if not config:
-        console.print("[yellow]No configuration found. Running setup...[/]")
-        run_onboarding()
-        config = load_config()
+    while True:
+        console.print(Panel(
+            f"{t('config.menu.option.model')}\n"
+            f"{t('config.menu.option.language')}\n"
+            f"{t('config.menu.option.show')}\n"
+            f"{t('config.menu.option.exit')}",
+            title=t("config.menu.title")
+        ))
+        
+        choice = typer.prompt(t("config.menu.prompt"), default="3")
+        
+        if choice == "1":
+            # Model
+            if typer.confirm("Re-run model setup setup?"):
+                run_onboarding()
+        elif choice == "2":
+            # Language
+            lang = typer.prompt(t("onboarding.lang_choice"), default="en")
+            config = load_config() or {}
+            if "model" not in config: config["model"] = {}
+            config["model"]["language"] = lang
+            save_config(config)
+            console.print(t("onboarding.saved"))
+        elif choice == "3":
+            # Show
+            config = load_config()
+            if not config:
+                console.print("[yellow]No config.[/]")
+                continue
+            console.print(Panel(
+                f"Provider: [yellow]{config.get('model', {}).get('provider')}[/]\n"
+                f"Name: [yellow]{config.get('model', {}).get('name')}[/]\n"
+                f"Language: [yellow]{config.get('model', {}).get('language')}[/]",
+                title=t("config.current_title")
+            ))
+            typer.prompt("Press Enter to continue")
+        elif choice == "4":
+            break
+        else:
+            console.print(t("onboarding.invalid_choice"))
 
-    console.print(Panel(
-        f"[bold blue]Current Model Configuration[/]\n\n"
-        f"Provider: [yellow]{config['model']['provider']}[/]\n"
-        f"Name: [yellow]{config['model']['name']}[/]",
-        title="Settings"
-    ))
-    
-    if typer.confirm("Do you want to change these settings?"):
-        run_onboarding()
+@config_app.command("model")
+def config_model_legacy():
+    """Legacy command for scripting."""
+    run_onboarding()
 
 if __name__ == "__main__":
     app()
