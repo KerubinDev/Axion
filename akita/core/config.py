@@ -43,9 +43,19 @@ def reset_config():
     if CONFIG_FILE.exists():
         CONFIG_FILE.unlink()
 
+def resolve_config_value(value: Any) -> Any:
+    """
+    Resolves values like 'env:VAR_NAME' to their environment variable content.
+    """
+    if isinstance(value, str) and value.startswith("env:"):
+        env_var = value[4:]
+        return os.getenv(env_var, value)
+    return value
+
 def get_config_value(section: str, key: str, default: Any = None) -> Any:
-    """Get a specific value from the config."""
+    """Get a specific value from the config and resolve env refs."""
     config = load_config()
     if not config:
         return default
-    return config.get(section, {}).get(key, default)
+    val = config.get(section, {}).get(key, default)
+    return resolve_config_value(val)

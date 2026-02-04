@@ -1,4 +1,5 @@
 import typer
+from typing import Optional, List, Dict, Any
 from rich.console import Console
 from rich.panel import Panel
 from akita.reasoning.engine import ReasoningEngine
@@ -10,6 +11,8 @@ from rich.markdown import Markdown
 from rich.syntax import Syntax
 from dotenv import load_dotenv
 from akita.tools.diff import DiffApplier
+from akita.tools.git import GitTool
+from akita.core.providers import detect_provider
 
 # Load environment variables from .env file
 load_dotenv()
@@ -42,27 +45,65 @@ def main(
 
 def run_onboarding():
     console.print(Panel(
-        "[bold cyan]AkitaLLM[/]\n\n[italic]Understanding the internals...[/]",
+        "[bold cyan]AkitaLLM Configuration[/]\n\n[italic]API-first setup...[/]",
         title="Onboarding"
     ))
     
-    console.print("1) Use default project model (GPT-4o Mini)")
-    console.print("2) Configure my own model")
+    api_key = typer.prompt("🔑 Paste your API Key (or type 'ollama' for local)", hide_input=False)
     
-    choice = typer.prompt("\nChoose an option", type=int, default=1)
+    provider = detect_provider(api_key)
+    if not provider:
+        console.print("[bold red]❌ Could not detect provider from the given key.[/]")
+        console.print("Make sure you are using a valid OpenAI (sk-...) or Anthropic (sk-ant-...) key.")
+        raise typer.Abort()
+
+    console.print(f"[bold green]✅ Detected Provider:[/] {provider.name.upper()}")
     
-    if choice == 1:
-        config = {"model": {"provider": "openai", "name": "gpt-4o-mini"}}
-        save_config(config)
-        console.print("[bold green]✅ Default model (GPT-4o Mini) selected and saved![/]")
+    with console.status(f"[bold blue]Consulting {provider.name} API for available models..."):
+        try:
+            models = provider.list_models(api_key)
+        except Exception as e:
+            console.print(f"[bold red]❌ Failed to list models:[/] {e}")
+            raise typer.Abort()
+    
+    if not models:
+        console.print("[bold yellow]⚠️ No models found for this provider.[/]")
+        raise typer.Abort()
+
+    console.print("\n[bold]Select a model:[/]")
+    for i, model in enumerate(models):
+        name_display = f" ({model.name})" if model.name else ""
+        console.print(f"{i+1}) [cyan]{model.id}[/]{name_display}")
+    
+    choice = typer.prompt("\nChoose a model number", type=int, default=1)
+    if 1 <= choice <= len(models):
+        selected_model = models[choice-1].id
     else:
-        provider = typer.prompt("Enter model provider (e.g., openai, ollama, anthropic)", default="openai")
-        name = typer.prompt("Enter model name (e.g., gpt-4o, llama3, claude-3-opus)", default="gpt-4o-mini")
-        config = {"model": {"provider": provider, "name": name}}
-        save_config(config)
-        console.print(f"[bold green]✅ Model configured: {provider}/{name}[/]")
+        console.print("[bold red]Invalid choice.[/]")
+        raise typer.Abort()
+
+    # Determine if we should save the key or use an env ref
+    use_env = typer.confirm("Would you like to use an environment variable for the API key? (Recommended)", default=True)
     
-    console.print("\n[dim]Configuration saved at ~/.akita/config.toml[/]\n")
+    final_key_ref = api_key
+    if use_env and provider.name != "ollama":
+        env_var_name = f"{provider.name.upper()}_API_KEY"
+        console.print(f"[dim]Please ensure you set [bold]{env_var_name}[/] in your .env or shell.[/]")
+        final_key_ref = f"env:{env_var_name}"
+
+    config = {
+        "model": {
+            "provider": provider.name,
+            "name": selected_model,
+            "api_key": final_key_ref
+        }
+    }
+    
+    save_config(config)
+    console.print(f"\n[bold green]✨ Configuration saved![/]")
+    console.print(f"Model: [bold]{selected_model}[/]")
+    console.print(f"Key reference: [dim]{final_key_ref}[/]")
+    console.print("\n[dim]Configuration stored at ~/.akita/config.toml[/]\n")
 
 @app.command()
 def review(
@@ -191,6 +232,29 @@ def plan(
         console.print(Markdown(plan_output))
     except Exception as e:
         console.print(f"[bold red]Planning failed:[/] {e}")
+        raise typer.Exit(code=1)
+
+@app.command()
+def clone(
+    url: str = typer.Argument(..., help="Git repository URL to clone."),
+    branch: Optional[str] = typer.Option(None, "--branch", "-b", help="Specific branch to clone."),
+    depth: Optional[int] = typer.Option(None, "--depth", "-d", help="Create a shallow clone with a history truncated to the specified number of commits.")
+):
+    """
+    Clone a remote Git repository into the Akita workspace (~/.akita/repos/).
+    """
+    console.print(Panel(f"🌐 [bold blue]Akita[/] is cloning: [yellow]{url}[/]", title="Clone Mode"))
+    
+    try:
+        with console.status("[bold green]Cloning repository..."):
+            local_path = GitTool.clone_repo(url, branch=branch, depth=depth)
+        
+        console.print(f"\n[bold green]✅ Repository cloned successfully![/]")
+        console.print(f"📍 Local path: [cyan]{local_path}[/]")
+    except FileExistsError as e:
+        console.print(f"[bold yellow]⚠️ {e}[/]")
+    except Exception as e:
+        console.print(f"[bold red]❌ Clone failed:[/] {e}")
         raise typer.Exit(code=1)
 
 @app.command()

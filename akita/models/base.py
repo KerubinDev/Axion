@@ -35,14 +35,19 @@ def get_model(model_name: Optional[str] = None) -> AIModel:
     """
     Get an AIModel instance based on config or provided name.
     """
+    provider = get_config_value("model", "provider", "openai")
+    api_key = get_config_value("model", "api_key")
+    
     if model_name is None:
         model_name = get_config_value("model", "name", "gpt-4o-mini")
     
-    provider = get_config_value("model", "provider", "openai")
+    # LiteLLM wants "provider/model_name" for non-OpenAI providers
+    if provider == "openai":
+        full_model_name = model_name
+    elif provider == "gemini":
+        full_model_name = f"gemini/{model_name}"
+    else:
+        full_model_name = f"{provider}/{model_name}"
     
-    # LiteLLM usually wants "provider/model_name" for some providers 
-    # but for OpenAI it handles "gpt-3.5-turbo" directly.
-    # If it's a custom provider, we might need to prepend it.
-    full_model_name = f"{provider}/{model_name}" if provider != "openai" else model_name
-    
-    return AIModel(model_name=full_model_name)
+    # For Ollama, we might need a base_url, but for now we assume default
+    return AIModel(model_name=full_model_name, api_key=api_key)
