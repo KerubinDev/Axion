@@ -91,8 +91,12 @@ class DiffApplier:
             # Strict Context Check & Dry Apply
             if not is_new:
                 # This uses whatthepatch's internal context verification
-                # If it returns None, it means context mismatch or hunk failure
-                new_lines = whatthepatch.apply_diff(patch, content.splitlines())
+                # If it raises HunkApplyException or returns None, it means context mismatch
+                try:
+                    new_lines = whatthepatch.apply_diff(patch, content.splitlines())
+                except Exception as e:
+                    new_lines = None # Treat exception as failure
+                
                 if new_lines is None:
                     print(f"❌ ERROR: Context Mismatch in {rel_path}.")
                     print("   The code the AI 'saw' does not match the file on disk.")
