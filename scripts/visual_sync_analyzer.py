@@ -57,7 +57,7 @@ Saída (formato obrigatório em JSON):
     # Detect model and provider
     model_to_use = "gpt-4o-mini" # Default
     if api_key.startswith("AIza"):
-        model_to_use = "gemini/gemini-3-flash"
+        model_to_use = "gemini/gemini-3-flash-preview"
     elif api_key.startswith("sk-ant-"):
         model_to_use = "anthropic/claude-3-5-sonnet-latest"
     elif api_key.startswith("gsk_"):
