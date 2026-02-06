@@ -1,5 +1,5 @@
 [project]
-name = "axion"
+name = "axionflow"
 version = "1.3.3"
 description = "Axion: An open-source local-first AI system for programming."
 authors = [{ name = "KerubinDev" }]

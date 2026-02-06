@@ -114,7 +114,7 @@ Nothing is applied without your approval.
 ## Installation
 
 ```bash
-pip install axion
+pip install axionflow
 ````
 
 Python 3.10+ required.
