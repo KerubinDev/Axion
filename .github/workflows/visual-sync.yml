@@ -10,7 +10,7 @@ on:
 jobs:
   analyze-and-sync:
     runs-on: ubuntu-latest
-    if: github.repository == 'KerubinDev/Axion'
+    if: github.repository == 'KerubinDev/AxionFlow'
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
